@@ -60,6 +60,7 @@ const AudioEngine = {
         if(id === 'boom') this.playTone(100, 'sawtooth', 0.2, 0.6);
         if(id === 'boss') { this.playTone(200, 'sawtooth', 0.2, 1.0); setTimeout(()=>this.playTone(150, 'sawtooth', 0.2, 1.5), 300); }
         if(id === 'enemy_shoot') this.playTone(600, 'sawtooth', 0.05, 0.1);
+        if(id === 'dash') this.playTone(700, 'sine', 0.1, 0.2);
     }
 };
 
@@ -72,37 +73,31 @@ const config = {
             constructor() { super('Boot'); }
             preload() {
                 const g = this.add.graphics();
-                // Player Shapes
                 g.lineStyle(2, 0xffffff); g.fillStyle(0xcccccc); g.fillCircle(12, 12, 10); g.strokeCircle(12, 12, 10); g.generateTexture('p_circle', 24, 24); g.clear();
                 g.lineStyle(2, 0xffffff); g.fillStyle(0xcccccc); g.fillRect(2, 2, 20, 20); g.strokeRect(2, 2, 20, 20); g.generateTexture('p_square', 24, 24); g.clear();
                 g.lineStyle(2, 0xffffff); g.fillStyle(0xcccccc); g.beginPath(); g.moveTo(12, 2); g.lineTo(22, 22); g.lineTo(2, 22); g.closePath(); g.fillPath(); g.strokePath(); g.generateTexture('p_triangle', 24, 24); g.clear();
                 g.fillStyle(0xffffff); g.fillCircle(7, 7, 7); g.fillCircle(17, 7, 7); g.beginPath(); g.moveTo(0,7); g.lineTo(24,7); g.lineTo(12,24); g.closePath(); g.fillPath(); g.generateTexture('p_soul', 24, 24); g.clear(); 
                 
-                // Enemies
                 g.fillStyle(0xff0033); g.beginPath(); g.moveTo(10, 0); g.lineTo(0, 20); g.lineTo(20, 20); g.closePath(); g.fillPath(); g.generateTexture('bug', 20, 20); g.clear();
                 g.fillStyle(0xaa00ff); g.fillRect(0,0, 24, 24); g.lineStyle(2,0xffffff); g.strokeRect(0,0,24,24); g.generateTexture('leak', 24, 24); g.clear();
                 g.fillStyle(0xff8800); g.beginPath(); g.moveTo(12, 0); g.lineTo(24, 12); g.lineTo(12, 24); g.lineTo(0, 12); g.closePath(); g.fillPath(); g.generateTexture('trojan', 24, 24); g.clear();
                 g.fillStyle(0xffff00); g.fillCircle(12, 12, 12); g.generateTexture('kamikaze', 24, 24); g.clear(); 
                 
-                // BOSSES
                 g.fillStyle(0xffd700); g.beginPath(); g.moveTo(30, 0); g.lineTo(60, 30); g.lineTo(30, 60); g.lineTo(0, 30); g.closePath(); g.fillPath(); g.lineStyle(3, 0xffffff); g.strokePath(); g.generateTexture('boss_mandirigma', 60, 60); g.clear();
                 g.fillStyle(0x555555); g.fillRect(0,0, 50, 50); g.lineStyle(4, 0xff0000); g.strokeRect(0,0,50,50); g.generateTexture('boss_ghost', 50, 50); g.clear();
                 g.fillStyle(0x00ffff); g.beginPath(); g.moveTo(30,0); g.lineTo(60,20); g.lineTo(45,60); g.lineTo(15,60); g.lineTo(0,20); g.closePath(); g.fillPath(); g.lineStyle(3, 0xffffff); g.strokePath(); g.generateTexture('boss_architect', 60, 60); g.clear();
 
-                // Projectiles & Items
                 g.fillStyle(0xffd700); g.fillCircle(6,6,6); g.generateTexture('boss_bullet', 12, 12); g.clear();
                 g.fillStyle(0x00ffff); g.beginPath(); g.moveTo(6,0); g.lineTo(12,12); g.lineTo(0,12); g.closePath(); g.fillPath(); g.generateTexture('boss_rocket', 12, 12); g.clear();
                 g.fillStyle(0xffff00); g.fillCircle(4, 4, 4); g.generateTexture('xp', 8, 8); g.clear();
                 g.fillStyle(0xff00b3); g.fillCircle(6, 6, 6); g.fillCircle(14, 6, 6); g.beginPath(); g.moveTo(0,6); g.lineTo(20,6); g.lineTo(10,20); g.closePath(); g.fillPath(); g.generateTexture('heart', 20, 20); g.clear();
                 g.fillStyle(0x00ff00); g.fillRect(0,0, 20, 20); g.fillStyle(0xffffff); g.fillRect(8,2,4,16); g.fillRect(2,8,16,4); g.generateTexture('medkit', 20, 20); g.clear();
                 
-                // DR Flag
                 g.fillStyle(0x002D62); g.fillRect(0,0, 40,25); g.fillStyle(0xCE1126); g.fillRect(50,0, 40,25);
                 g.fillStyle(0xCE1126); g.fillRect(0,35, 40,25); g.fillStyle(0x002D62); g.fillRect(50,35, 40,25);
                 g.fillStyle(0xffffff); g.fillRect(40,0, 10,60); g.fillRect(0,25, 90,10);
                 g.fillStyle(0xd4af37); g.fillRect(42,27, 6,6); g.generateTexture('dr_flag', 90, 60); g.clear();
                 
-                // CHILE Flag
                 g.fillStyle(0xffffff); g.fillRect(0,0, 90, 30); g.fillStyle(0xDA291C); g.fillRect(0,30, 90, 30);
                 g.fillStyle(0x0033A0); g.fillRect(0,0, 30, 30); 
                 g.fillStyle(0xffffff); g.beginPath(); g.moveTo(15, 5); g.lineTo(18, 12); g.lineTo(25, 12); g.lineTo(20, 17); g.lineTo(22, 24); g.lineTo(15, 20); g.lineTo(8, 24); g.lineTo(10, 17); g.lineTo(5, 12); g.lineTo(12, 12); g.closePath(); g.fillPath(); g.generateTexture('chile_flag', 90, 60); g.clear();
@@ -361,7 +356,7 @@ const config = {
                 this.physics.add.overlap(this.players, this.hearts, this.collectHeart, null, this);
                 this.physics.add.overlap(this.players, this.medkits, this.collectMedkit, null, this);
 
-                this.spawnTimer = this.time.addEvent({ delay: this.spawnRate, callback: this.spawnEnemy, callbackScope: this, loop: true });
+                this.spawnTimer = this.time.addEvent({ delay: 1000, callback: this.spawnEnemy, callbackScope: this, loop: true });
                 this.medTimer = this.time.addEvent({ delay: this.numP === 2 ? 12000 : 20000, callback: this.spawnMedkit, callbackScope: this, loop: true });
                 
                 if(this.musicTimer) this.musicTimer.remove();
@@ -460,20 +455,27 @@ const config = {
                     this.trails.strokePath();
                 });
 
+                // BOSS ATTACKS AND MOVEMENT FIX (MANDIRIGMA FREEDOM)
                 if(this.boss && this.boss.active) {
                     this.bossHpText.setVisible(true).setPosition(this.boss.x, this.boss.y - 45).setText('HP:' + Math.floor(this.boss.hp));
                     this.boss.atkTimer -= delta;
                     
+                    // General Boss Bounding
+                    if(this.boss.x < 30) this.boss.setVelocityX(Math.abs(this.boss.body.velocity.x));
+                    if(this.boss.x > 770) this.boss.setVelocityX(-Math.abs(this.boss.body.velocity.x));
+                    if(this.boss.y < 30) this.boss.setVelocityY(Math.abs(this.boss.body.velocity.y));
+                    if(this.boss.y > 570) this.boss.setVelocityY(-Math.abs(this.boss.body.velocity.y));
+
                     if(this.boss.texture.key === 'boss_mandirigma') {
-                        // Fixed Mandirigma staying at the top: Give him a gentle horizontal float
-                        if(this.boss.body.velocity.x === 0) this.boss.setVelocityX(100);
-                        if(this.boss.x < 100) this.boss.setVelocityX(100);
-                        if(this.boss.x > 700) this.boss.setVelocityX(-100);
-                        
-                        if(this.boss.atkTimer <= 0) {
-                            this.boss.atkTimer = 1500;
-                            let target = this.getClosest(this.boss.x, this.boss.y, this.players);
-                            if(target) {
+                        // CHASE THE PLAYER FREELY (LIKE NORMAL ENEMIES)
+                        let target = this.getClosest(this.boss.x, this.boss.y, this.players);
+                        if(target) {
+                            this.physics.moveToObject(this.boss, target, this.boss.speed);
+                            this.boss.rotation = Phaser.Math.Angle.Between(this.boss.x, this.boss.y, target.x, target.y) + Math.PI/2;
+                            
+                            // SHOOTING
+                            if(this.boss.atkTimer <= 0) {
+                                this.boss.atkTimer = 1500;
                                 AudioEngine.sfx('enemy_shoot');
                                 let b = this.bossBullets.create(this.boss.x, this.boss.y, 'boss_bullet');
                                 b.dmg = 20; this.physics.moveToObject(b, target, 450);
@@ -481,11 +483,6 @@ const config = {
                             }
                         }
                     } else if(this.boss.texture.key === 'boss_ghost') {
-                        if(this.boss.x < 30) this.boss.setVelocityX(Math.abs(this.boss.body.velocity.x));
-                        if(this.boss.x > 770) this.boss.setVelocityX(-Math.abs(this.boss.body.velocity.x));
-                        if(this.boss.y < 30) this.boss.setVelocityY(Math.abs(this.boss.body.velocity.y));
-                        if(this.boss.y > 570) this.boss.setVelocityY(-Math.abs(this.boss.body.velocity.y));
-                        
                         if(this.boss.atkTimer <= 0) {
                             this.boss.atkTimer = 3000;
                             AudioEngine.sfx('warn');
@@ -496,11 +493,6 @@ const config = {
                             this.tweens.add({ targets: c, alpha: 0, scale: 1.2, duration: 400, onComplete: () => { c.destroy(); pulse.destroy(); }});
                         }
                     } else if(this.boss.texture.key === 'boss_architect') {
-                        if(this.boss.x < 30) this.boss.setVelocityX(Math.abs(this.boss.body.velocity.x));
-                        if(this.boss.x > 770) this.boss.setVelocityX(-Math.abs(this.boss.body.velocity.x));
-                        if(this.boss.y < 30) this.boss.setVelocityY(Math.abs(this.boss.body.velocity.y));
-                        if(this.boss.y > 570) this.boss.setVelocityY(-Math.abs(this.boss.body.velocity.y));
-                        
                         if(this.boss.atkTimer <= 0) {
                             this.boss.atkTimer = 1200;
                             let target = this.getClosest(this.boss.x, this.boss.y, this.players);
@@ -645,7 +637,7 @@ const config = {
                 } else this.reviveText.setText('');
 
                 this.enemies.getChildren().forEach(e => {
-                    if (!e.active || e.isBoss || e.primed) return;
+                    if (!e.active || e.isBoss || e.primed) return; // Ignore Bosses in general chase, they have their own logic now
                     let target = this.getClosest(e.x, e.y, this.players);
                     if (target) {
                         this.physics.moveToObject(e, target, e.speed);
@@ -722,7 +714,8 @@ const config = {
                 this.bossWarning.setText('WARNING: ' + bName + ' APPROACHING!');
                 this.time.delayedCall(3000, () => this.bossWarning.setText(''));
 
-                let b = this.enemies.create(400, 50, tex);
+                // Spawns near top, but not locked to it
+                let b = this.enemies.create(400, 100, tex);
                 b.hp = (300 + (this.level * 50)) * SETS.diffMults[SETS.dIdx] * (this.numP === 2 ? 1.5 : 1.0); 
                 b.speed = 60 + (this.level * 1.5) * SETS.spdMults[SETS.dIdx]; 
                 b.iFrames = 0; b.isBoss = true; b.atkTimer = 2000;
@@ -1037,7 +1030,6 @@ const config = {
                     let modeStr = s.m === 'S' ? '[SURVIVAL]' : '[ARCADE]';
                     let valStr = s.m === 'S' ? `${s.s}s` : s.s.toString();
                     
-                    // ALIGNED SCOREBOARD FORMATTING
                     this.add.text(100, 140 + (i*35), `${(i+1).toString().padStart(2, ' ')}. ${s.n}`, { fontFamily: 'Courier', fontSize: '24px', color: '#fff' });
                     this.add.text(400, 140 + (i*35), modeStr, { fontFamily: 'Courier', fontSize: '24px', color: s.m === 'S' ? '#ffaa00' : '#00ffff' }).setOrigin(0.5, 0);
                     this.add.text(700, 140 + (i*35), valStr, { fontFamily: 'Courier', fontSize: '24px', color: '#00ff00' }).setOrigin(1, 0);
