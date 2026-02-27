@@ -1,3 +1,12 @@
+// --- ARCADE MACHINE BINDINGS ---
+const ARCADE_CONTROLS = {
+    'P1U': ['w'], 'P1D': ['s'], 'P1L': ['a'], 'P1R': ['d'],
+    'P2U': ['ArrowUp'], 'P2D': ['ArrowDown'], 'P2L': ['ArrowLeft'], 'P2R': ['ArrowRight'],
+    'P1A': ['u', 'Space'], 'P1B': ['i'], // P1 Shoot & Ultimate
+    'P2A': ['r', 'Enter'], 'P2B': ['t'], // P2 Shoot & Ultimate
+    'START1': ['u', 'Space', 'Enter']    // Menu Navigation
+};
+
 // --- GLOBAL SETTINGS & STORAGE ---
 const SETS = {
     diffNames: ['EASY', 'NORMAL', 'HARD', 'EXTREME'],
@@ -25,11 +34,14 @@ const THEMES = [
 ];
 
 const Storage = {
-    get: () => JSON.parse(localStorage.getItem('ks_scores') || '[{"n":"END","s":5000,"m":"N"},{"n":"PUL","s":3000,"m":"N"}]'),
+    get: () => JSON.parse(localStorage.getItem('ks_scores_v5') || '{"A":[{"n":"END","s":5000}],"S":[{"n":"PUL","s":300}],"D":[]}'),
     save: (n, s, mode) => {
-        let sc = Storage.get(); sc.push({n: n, s: s, m: mode}); 
-        sc.sort((a,b) => b.s - a.s);
-        localStorage.setItem('ks_scores', JSON.stringify(sc.slice(0, 10)));
+        let sc = Storage.get(); 
+        if(!sc[mode]) sc[mode] = []; 
+        sc[mode].push({n: n, s: s}); 
+        sc[mode].sort((a,b) => b.s - a.s);
+        sc[mode] = sc[mode].slice(0, 8); 
+        localStorage.setItem('ks_scores_v5', JSON.stringify(sc));
     }
 };
 
@@ -60,7 +72,7 @@ const AudioEngine = {
         if(id === 'boom') this.playTone(100, 'sawtooth', 0.2, 0.6);
         if(id === 'boss') { this.playTone(200, 'sawtooth', 0.2, 1.0); setTimeout(()=>this.playTone(150, 'sawtooth', 0.2, 1.5), 300); }
         if(id === 'enemy_shoot') this.playTone(600, 'sawtooth', 0.05, 0.1);
-        if(id === 'dash') this.playTone(700, 'sine', 0.1, 0.2);
+        if(id === 'demon') { this.playTone(80, 'sawtooth', 0.3, 2.0); setTimeout(()=>this.playTone(100, 'sawtooth', 0.3, 2.0), 500); }
     }
 };
 
@@ -73,44 +85,64 @@ const config = {
             constructor() { super('Boot'); }
             preload() {
                 const g = this.add.graphics();
+                // Player Shapes
                 g.lineStyle(2, 0xffffff); g.fillStyle(0xcccccc); g.fillCircle(12, 12, 10); g.strokeCircle(12, 12, 10); g.generateTexture('p_circle', 24, 24); g.clear();
                 g.lineStyle(2, 0xffffff); g.fillStyle(0xcccccc); g.fillRect(2, 2, 20, 20); g.strokeRect(2, 2, 20, 20); g.generateTexture('p_square', 24, 24); g.clear();
                 g.lineStyle(2, 0xffffff); g.fillStyle(0xcccccc); g.beginPath(); g.moveTo(12, 2); g.lineTo(22, 22); g.lineTo(2, 22); g.closePath(); g.fillPath(); g.strokePath(); g.generateTexture('p_triangle', 24, 24); g.clear();
                 g.fillStyle(0xffffff); g.fillCircle(7, 7, 7); g.fillCircle(17, 7, 7); g.beginPath(); g.moveTo(0,7); g.lineTo(24,7); g.lineTo(12,24); g.closePath(); g.fillPath(); g.generateTexture('p_soul', 24, 24); g.clear(); 
                 
+                // Enemies
                 g.fillStyle(0xff0033); g.beginPath(); g.moveTo(10, 0); g.lineTo(0, 20); g.lineTo(20, 20); g.closePath(); g.fillPath(); g.generateTexture('bug', 20, 20); g.clear();
                 g.fillStyle(0xaa00ff); g.fillRect(0,0, 24, 24); g.lineStyle(2,0xffffff); g.strokeRect(0,0,24,24); g.generateTexture('leak', 24, 24); g.clear();
                 g.fillStyle(0xff8800); g.beginPath(); g.moveTo(12, 0); g.lineTo(24, 12); g.lineTo(12, 24); g.lineTo(0, 12); g.closePath(); g.fillPath(); g.generateTexture('trojan', 24, 24); g.clear();
                 g.fillStyle(0xffff00); g.fillCircle(12, 12, 12); g.generateTexture('kamikaze', 24, 24); g.clear(); 
                 
+                // BOSSES
                 g.fillStyle(0xffd700); g.beginPath(); g.moveTo(30, 0); g.lineTo(60, 30); g.lineTo(30, 60); g.lineTo(0, 30); g.closePath(); g.fillPath(); g.lineStyle(3, 0xffffff); g.strokePath(); g.generateTexture('boss_mandirigma', 60, 60); g.clear();
                 g.fillStyle(0x555555); g.fillRect(0,0, 50, 50); g.lineStyle(4, 0xff0000); g.strokeRect(0,0,50,50); g.generateTexture('boss_ghost', 50, 50); g.clear();
                 g.fillStyle(0x00ffff); g.beginPath(); g.moveTo(30,0); g.lineTo(60,20); g.lineTo(45,60); g.lineTo(15,60); g.lineTo(0,20); g.closePath(); g.fillPath(); g.lineStyle(3, 0xffffff); g.strokePath(); g.generateTexture('boss_architect', 60, 60); g.clear();
+                
+                // PULSE DEMON BOSS
+                g.fillStyle(0xff0000); g.beginPath(); g.moveTo(40,0); g.lineTo(80,40); g.lineTo(40,80); g.lineTo(0,40); g.closePath(); g.fillPath(); g.lineStyle(4, 0xffffff); g.strokePath(); g.generateTexture('boss_demon', 80, 80); g.clear();
 
+                // Projectiles & Items
                 g.fillStyle(0xffd700); g.fillCircle(6,6,6); g.generateTexture('boss_bullet', 12, 12); g.clear();
                 g.fillStyle(0x00ffff); g.beginPath(); g.moveTo(6,0); g.lineTo(12,12); g.lineTo(0,12); g.closePath(); g.fillPath(); g.generateTexture('boss_rocket', 12, 12); g.clear();
-                g.fillStyle(0xffff00); g.fillCircle(4, 4, 4); g.generateTexture('xp', 8, 8); g.clear();
+                g.fillStyle(0xffff00); g.fillCircle(6, 6, 6); g.generateTexture('xp', 12, 12); g.clear(); 
                 g.fillStyle(0xff00b3); g.fillCircle(6, 6, 6); g.fillCircle(14, 6, 6); g.beginPath(); g.moveTo(0,6); g.lineTo(20,6); g.lineTo(10,20); g.closePath(); g.fillPath(); g.generateTexture('heart', 20, 20); g.clear();
                 g.fillStyle(0x00ff00); g.fillRect(0,0, 20, 20); g.fillStyle(0xffffff); g.fillRect(8,2,4,16); g.fillRect(2,8,16,4); g.generateTexture('medkit', 20, 20); g.clear();
                 
+                // Flags
                 g.fillStyle(0x002D62); g.fillRect(0,0, 40,25); g.fillStyle(0xCE1126); g.fillRect(50,0, 40,25);
                 g.fillStyle(0xCE1126); g.fillRect(0,35, 40,25); g.fillStyle(0x002D62); g.fillRect(50,35, 40,25);
                 g.fillStyle(0xffffff); g.fillRect(40,0, 10,60); g.fillRect(0,25, 90,10);
                 g.fillStyle(0xd4af37); g.fillRect(42,27, 6,6); g.generateTexture('dr_flag', 90, 60); g.clear();
                 
+                // CHILE Flag
                 g.fillStyle(0xffffff); g.fillRect(0,0, 90, 30); g.fillStyle(0xDA291C); g.fillRect(0,30, 90, 30);
                 g.fillStyle(0x0033A0); g.fillRect(0,0, 30, 30); 
                 g.fillStyle(0xffffff); g.beginPath(); g.moveTo(15, 5); g.lineTo(18, 12); g.lineTo(25, 12); g.lineTo(20, 17); g.lineTo(22, 24); g.lineTo(15, 20); g.lineTo(8, 24); g.lineTo(10, 17); g.lineTo(5, 12); g.lineTo(12, 12); g.closePath(); g.fillPath(); g.generateTexture('chile_flag', 90, 60); g.clear();
                 
                 g.fillStyle(0x888888); g.fillRect(0,0, 4, 4); g.generateTexture('particle', 4, 4); g.clear();
                 g.fillStyle(0xffffff); g.fillCircle(4,4,4); g.generateTexture('missile_base', 8, 8); g.clear();
-                g.lineStyle(3, 0xffffff); g.strokeCircle(8,8,6); g.generateTexture('shield_orb_base', 16, 16); g.clear();
+                
+                g.fillStyle(0x00ffff, 0.4); g.fillCircle(12,12,10); g.lineStyle(3, 0xffffff); g.strokeCircle(12,12,10); g.generateTexture('shield_orb_base', 24, 24); g.clear();
                 g.lineStyle(4, 0xffffff, 0.5); g.fillStyle(0xffffff, 0.2); g.fillCircle(40,40,36); g.strokeCircle(40,40,36); g.generateTexture('energy_shield_base', 80, 80); 
                 g.destroy();
             }
             create() { 
                 this.add.text(400, 300, 'PRESS ACTION 1 TO INITIALIZE', { fontFamily: 'Courier', fontSize: '24px', color: '#00ff00' }).setOrigin(0.5);
-                this.input.keyboard.once('keydown', () => { AudioEngine.init(); this.scene.start('Menu'); });
+                
+                // Setup key listener using ARCADE_CONTROLS mapping
+                let startKeys = ARCADE_CONTROLS.START1.join(',');
+                this.input.keyboard.once('keydown', (event) => { 
+                    if(ARCADE_CONTROLS.START1.includes(event.key) || ARCADE_CONTROLS.START1.includes(event.code)) {
+                        AudioEngine.init(); this.scene.start('Menu'); 
+                    } else {
+                        // Fallback in case they press anything else
+                        AudioEngine.init(); this.scene.start('Menu'); 
+                    }
+                });
             }
         },
 
@@ -126,13 +158,14 @@ const config = {
                 this.state = 'MAIN'; 
                 this.mOpts = ['SINGLE THREAD (1P)', 'MULTITHREADING (2P)', 'SETTINGS', 'LEADERBOARD', 'HOW TO PLAY', 'CREDITS'];
                 this.sOpts = ['DIFFICULTY', 'THEME', 'P1 COLOR', 'P1 SHAPE', 'P2 COLOR', 'P2 SHAPE', 'MUSIC', 'BACK'];
-                this.modeOpts = ['ARCADE (LEVELS & BOSSES)', 'SURVIVAL (ENDLESS HOSTILES)', 'BACK'];
+                this.modeOpts = ['ARCADE (LEVELS & BOSSES)', 'SURVIVAL (ENDLESS HOSTILES)', 'PULSE DEMON (BOSS RUSH)', 'BACK'];
                 
                 this.menuTexts = [];
                 for(let i=0; i<8; i++) { this.menuTexts.push(this.add.text(400, 170 + (i * 45), '', { fontFamily: 'Courier', fontSize: '24px', color: thm.mUnsel }).setOrigin(0.5)); }
                 this.cursor = this.add.text(200, 250, '>', { fontFamily: 'Courier', fontSize: '24px', color: thm.mSel }).setOrigin(0.5);
                 this.descText = this.add.text(400, 550, '', { fontFamily: 'Courier', fontSize: '18px', color: '#888888', fontStyle: 'italic' }).setOrigin(0.5);
                 
+                // Maps inputs to standard keys
                 this.keys = this.input.keyboard.addKeys('W,S,UP,DOWN,A,D,LEFT,RIGHT,U,SPACE,ENTER');
                 this.idx = 0;
                 this.selectedPlayers = 1;
@@ -154,7 +187,7 @@ const config = {
                 if(this.attractTimer) this.attractTimer.remove();
                 this.attractTimer = this.time.delayedCall(20000, () => {
                     this.musicTimer.remove();
-                    this.scene.start('Play', { p: 1, attract: true, survival: false });
+                    this.scene.start('Play', { p: 1, attract: true, mode: 'ARCADE' });
                 });
             }
 
@@ -205,8 +238,12 @@ const config = {
                         if(i===5) { txt += `: < ${SETS.sNames[SETS.p2S]} >`; if(this.idx===5) this.descText.setText(SETS.sDesc[SETS.p2S]); }
                         if(i===6) txt += `: < ${SETS.mNames[SETS.mIdx]} >`;
                     }
+                    if(this.state === 'MODE' && i===2) txt = `[ ${txt} ]`; // Highlight Demon mode
                     t.setText(txt);
                     t.setColor(i === this.idx ? thm.mSel : thm.mUnsel);
+                    
+                    if(this.state === 'MODE' && i===2) t.setColor(i === this.idx ? '#ff0000' : '#880000'); // Red for Demon Mode
+
                     if(i === this.idx) {
                         t.setFontStyle('bold');
                         if(this.state === 'SETTINGS' && i===2) t.setColor('#'+SETS.cValues[SETS.p1C].toString(16).padStart(6,'0'));
@@ -230,7 +267,7 @@ const config = {
                 if(this.inInfo) {
                     if(Phaser.Input.Keyboard.JustDown(this.keys.U) || Phaser.Input.Keyboard.JustDown(this.keys.SPACE) || Phaser.Input.Keyboard.JustDown(this.keys.ENTER)) {
                         this.inInfo = false; this.infoContainer.setVisible(false); this.infoFlag.setVisible(false);
-                        this.attractTimer.reset({delay: 20000, callback:()=>{this.musicTimer.remove(); this.scene.start('Play', {p:1, attract:true, survival:false});}});
+                        this.attractTimer.reset({delay: 20000, callback:()=>{this.musicTimer.remove(); this.scene.start('Play', {p:1, attract:true, mode:'ARCADE'});}});
                     } return;
                 }
 
@@ -241,7 +278,7 @@ const config = {
                 let action = Phaser.Input.Keyboard.JustDown(this.keys.U) || Phaser.Input.Keyboard.JustDown(this.keys.SPACE) || Phaser.Input.Keyboard.JustDown(this.keys.ENTER);
 
                 if(up || down || left || right || action) {
-                    this.attractTimer.reset({delay: 20000, callback:()=>{this.musicTimer.remove(); this.scene.start('Play', {p:1, attract:true, survival:false});}});
+                    this.attractTimer.reset({delay: 20000, callback:()=>{this.musicTimer.remove(); this.scene.start('Play', {p:1, attract:true, mode:'ARCADE'});}});
                 }
 
                 if(up) this.checkKonami('UP');
@@ -266,9 +303,10 @@ const config = {
                 } else if (this.state === 'MODE') {
                     if(action) {
                         AudioEngine.playTone(800, 'square', 0.05, 0.1);
-                        if(this.idx === 0) { this.musicTimer.remove(); this.scene.start('Play', { p: this.selectedPlayers, survival: false }); }
-                        if(this.idx === 1) { this.musicTimer.remove(); this.scene.start('Play', { p: this.selectedPlayers, survival: true }); }
-                        if(this.idx === 2) { this.state = 'MAIN'; this.idx = this.selectedPlayers - 1; this.renderMenu(); }
+                        if(this.idx === 0) { this.musicTimer.remove(); this.scene.start('Play', { p: this.selectedPlayers, mode: 'ARCADE' }); }
+                        if(this.idx === 1) { this.musicTimer.remove(); this.scene.start('Play', { p: this.selectedPlayers, mode: 'SURVIVAL' }); }
+                        if(this.idx === 2) { this.musicTimer.remove(); this.scene.start('Play', { p: this.selectedPlayers, mode: 'DEMON' }); }
+                        if(this.idx === 3) { this.state = 'MAIN'; this.idx = this.selectedPlayers - 1; this.renderMenu(); }
                     }
                 } else if (action) {
                     AudioEngine.playTone(800, 'square', 0.05, 0.1);
@@ -276,7 +314,7 @@ const config = {
                     if (this.idx === 1) { this.selectedPlayers = 2; this.state = 'MODE'; this.idx = 0; this.renderMenu(); }
                     if (this.idx === 2) { this.state = 'SETTINGS'; this.idx = 0; this.renderMenu(); }
                     if (this.idx === 3) { this.musicTimer.remove(); this.scene.start('Leaderboard'); }
-                    if (this.idx === 4) this.showInfo("HOW TO PLAY\n\n- Move JOYSTICK to aim & avoid bugs.\n- Auto-attacks fire periodically.\n- Manual fire (ACTION 1) homes if VERY close.\n- Collect Yellow Bits to Upgrade.\n- Full Energy? Use Ultimate (ACTION 2).\n\nDON'T CAMP! Standing still triggers Nukes.");
+                    if (this.idx === 4) this.showInfo("HOW TO PLAY\n\n- Move JOYSTICK to aim & avoid bugs.\n- Auto-attacks fire periodically.\n- Manual fire (ACTION 1) homes if close.\n- Collect Yellow Bits to Upgrade.\n- Full Energy? Use Ultimate (ACTION 2).\n\nDON'T CAMP! Standing still triggers Nukes.");
                     if (this.idx === 5) this.showInfo("CREDITS\n\nDeveloper: Andrew Batista Garcia\n(aka: ender)\n\nTeam: PULSE DEMON\nEvent: ICPC Latam 2026\n\nMade in DR", 'dr_flag');
                 }
             }
@@ -288,25 +326,31 @@ const config = {
 
         class PlayScene extends Phaser.Scene {
             constructor() { super('Play'); }
-            init(data) { this.numP = data.p || 1; this.isAttract = data.attract || false; this.isSurvival = data.survival || false; }
+            init(data) { 
+                this.numP = data.p || 1; 
+                this.isAttract = data.attract || false; 
+                this.mode = data.mode || 'ARCADE'; // ARCADE, SURVIVAL, DEMON
+            }
             
             create() {
-                let thm = THEMES[SETS.tIdx];
-                this.cameras.main.setBackgroundColor(thm.bg);
-                this.grid = this.add.tileSprite(400, 300, 800, 600, 'particle').setTint(thm.grid).setAlpha(thm.gridAlpha);
+                this.thm = THEMES[SETS.tIdx];
+                this.cameras.main.setBackgroundColor(this.thm.bg);
+                this.grid = this.add.tileSprite(400, 300, 800, 600, 'particle').setTint(this.thm.grid).setAlpha(this.thm.gridAlpha);
                 
                 this.xp = 0; this.xpNeeded = 30; 
-                this.level = this.isSurvival ? 1 : 1; 
+                this.level = 1; 
                 this.score = 0;
                 this.gameOver = false; this.timeElapsed = 0; 
                 this.boss = null; this.lastBossLevel = 0;
+                this.demonPhase2 = false;
 
                 this.comboMult = 1.0; this.comboHits = 0; this.comboTimer = 0;
 
                 this.multH = this.numP === 2 ? 1.5 : 1.0; 
                 this.multS = this.numP === 2 ? 0.6 : 1.0; 
                 this.spawnRate = (1200 / SETS.diffMults[SETS.dIdx]) * this.multS;
-                if(this.isSurvival) this.spawnRate = 300 * this.multS; 
+                if(this.mode === 'SURVIVAL') this.spawnRate = 300 * this.multS; 
+                if(this.mode === 'DEMON') this.spawnRate = 999999; // NO NORMAL ENEMIES IN DEMON MODE
 
                 this.enemies = this.physics.add.group();
                 this.xps = this.physics.add.group();
@@ -328,13 +372,15 @@ const config = {
                 this.xpBarBg = this.add.rectangle(400, 10, 780, 14, 0x333333).setDepth(100);
                 this.xpBar = this.add.rectangle(20, 10, 0, 14, 0xffff00).setOrigin(0, 0.5).setDepth(101);
                 
-                let modeText = this.isSurvival ? 'SURVIVAL TIME: 0s' : 'LVL: 1';
-                this.levelText = this.add.text(20, 25, modeText, { fontFamily: 'Courier', fontSize: '18px', color: thm.txt }).setDepth(100);
+                let modeText = this.mode === 'SURVIVAL' ? 'SURVIVAL TIME: 0s' : (this.mode === 'DEMON' ? 'BOSS RUSH' : 'LVL: 1');
+                this.levelText = this.add.text(20, 25, modeText, { fontFamily: 'Courier', fontSize: '18px', color: this.thm.txt }).setDepth(100);
                 
-                let sText = this.isSurvival ? 'KILLS: 0' : 'SCORE: 0';
-                this.scoreText = this.add.text(780, 25, sText, { fontFamily: 'Courier', fontSize: '18px', color: thm.txt }).setOrigin(1, 0).setDepth(100);
+                let sText = this.mode === 'SURVIVAL' ? 'KILLS: 0' : (this.mode === 'DEMON' ? 'TIME: 0s' : 'SCORE: 0');
+                this.scoreText = this.add.text(780, 25, sText, { fontFamily: 'Courier', fontSize: '18px', color: this.thm.txt }).setOrigin(1, 0).setDepth(100);
                 
                 this.comboText = this.add.text(780, 45, 'COMBO x1.0', { fontFamily: 'Courier', fontSize: '20px', color: '#ffaa00', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(100);
+                if(this.mode === 'DEMON') this.comboText.setVisible(false);
+
                 this.reviveText = this.add.text(400, 50, '', { fontFamily: 'Courier', fontSize: '18px', color: '#ff00b3' }).setOrigin(0.5).setDepth(100);
                 this.bossWarning = this.add.text(400, 80, '', { fontFamily: 'Courier', fontSize: '24px', color: '#ff0000', fontStyle: 'bold' }).setOrigin(0.5).setDepth(100);
                 
@@ -347,6 +393,24 @@ const config = {
 
                 this.trails = this.add.graphics().setDepth(-1);
                 this.explodeEmitter = this.add.particles(0, 0, 'particle', { speed: {min:50, max:200}, lifespan: 400, scale: {start:1, end:0}, emitting: false, quantity: 8 });
+
+                this.players.getChildren().forEach(p => {
+                    p.body.collideWorldBounds = true;
+                    p.body.onWorldBounds = true;
+                    p.body.setBounce(0.2); 
+                    
+                    if(this.mode === 'DEMON') {
+                        // Max out player for Demon mode
+                        p.pulseRadius = 120; p.pulseCD = 800; p.pulseDmg = 30;
+                        p.wpnType = 'rapid'; p.manualMaxCD = 150; p.manualDmg = 25;
+                        p.ultType = 'bomb'; p.hasShield = true;
+                        for(let i=0; i<4; i++) {
+                            let s = this.physics.add.image(p.x, p.y, 'shield_orb_base').setTint(p.color);
+                            s.body.setCircle(12); s.dmg = 20; this.pulses.add(s); p.shields.push(s);
+                            s.offsetAngle = (Math.PI * 2 / 4) * i;
+                        }
+                    }
+                });
 
                 this.physics.add.overlap(this.pulses, this.enemies, this.damageEnemy, null, this);
                 this.physics.add.overlap(this.missiles, this.enemies, this.damageEnemy, null, this);
@@ -362,9 +426,14 @@ const config = {
                 if(this.musicTimer) this.musicTimer.remove();
                 this.beat = 0;
                 
-                if(this.isSurvival && !this.isAttract) SETS.mIdx = 6; 
+                if(this.mode === 'SURVIVAL' && !this.isAttract) SETS.mIdx = 6; 
+                if(this.mode === 'DEMON') SETS.mIdx = 3; // Megalovania
                 
                 this.musicTimer = this.time.addEvent({ delay: 150, callback: this.playBeat, callbackScope: this, loop: true });
+
+                if(this.mode === 'DEMON') {
+                    this.time.delayedCall(2000, () => this.spawnBoss(3)); // Spawns PULSE DEMON
+                }
             }
 
             playBeat() {
@@ -378,7 +447,7 @@ const config = {
                 let t7 = [82.41, 82.41, 164.81, 82.41, 82.41, 146.83, 82.41, 82.41, 130.81, 82.41, 82.41, 123.47, 82.41, 82.41, 116.54, 0];
                 let tracks = [t1, t2, t3, t4, t5, t6, t7];
                 
-                if (SETS.mIdx === 3 || SETS.mIdx === 6) this.musicTimer.delay = this.bossActive ? 90 : 110;
+                if (SETS.mIdx === 3 || SETS.mIdx === 6) this.musicTimer.delay = this.bossActive ? (this.demonPhase2 ? 70 : 90) : 110;
                 else if (SETS.mIdx === 4 || SETS.mIdx === 5) this.musicTimer.delay = this.bossActive ? 180 : 220;
                 else this.musicTimer.delay = this.bossActive ? 100 : 150;
                 
@@ -396,7 +465,8 @@ const config = {
                 let p = this.players.create(x, y, tex);
                 p.setTint(color); p.color = color;
                 p.pid = id; p.isDead = false; p.collectedHearts = 0;
-                p.setCollideWorldBounds(true).setDrag(1500).setMaxVelocity(200 * spdMult);
+                p.setMaxVelocity(200 * spdMult);
+                p.setDrag(1500); 
                 
                 p.body.setCircle(shape === 'SOUL' ? 5 : 10); 
                 if(shape === 'SOUL') p.body.setOffset(7, 7);
@@ -429,8 +499,8 @@ const config = {
                 if (this.gameOver) return;
                 this.timeElapsed += delta;
 
-                if(this.isSurvival) {
-                    this.levelText.setText('SURVIVAL TIME: ' + Math.floor(this.timeElapsed/1000) + 's');
+                if(this.mode === 'SURVIVAL' || this.mode === 'DEMON') {
+                    this.levelText.setText((this.mode==='DEMON'?'TIME: ':'SURVIVAL TIME: ') + Math.floor(this.timeElapsed/1000) + 's');
                 }
 
                 if(this.comboTimer > 0) {
@@ -441,7 +511,22 @@ const config = {
                 let activeCount = (this.p1&&!this.p1.isDead?1:0) + (this.p2&&!this.p2.isDead?1:0);
                 let curMultS = (this.numP === 2 && activeCount === 2) ? 0.6 : (this.numP === 2 ? 0.85 : 1.0);
                 let curSpawnRate = Math.max(150, ((1200 - (this.level * 30)) / SETS.diffMults[SETS.dIdx]) * curMultS);
-                this.spawnTimer.delay = this.boss ? curSpawnRate * 3 : curSpawnRate;
+                if(this.mode !== 'DEMON') this.spawnTimer.delay = this.boss ? curSpawnRate * 3 : curSpawnRate;
+
+                // XP Magnetism
+                this.players.getChildren().forEach(p => {
+                    if(p.isDead) return;
+                    this.xps.getChildren().forEach(xp => {
+                        if(Phaser.Math.Distance.Between(p.x, p.y, xp.x, xp.y) < 50) {
+                            this.physics.moveToObject(xp, p, 200);
+                        }
+                    });
+                    this.medkits.getChildren().forEach(mk => {
+                        if(Phaser.Math.Distance.Between(p.x, p.y, mk.x, mk.y) < 50) {
+                            this.physics.moveToObject(mk, p, 200);
+                        }
+                    });
+                });
 
                 this.trails.clear();
                 this.missiles.getChildren().forEach(m => {
@@ -455,30 +540,28 @@ const config = {
                     this.trails.strokePath();
                 });
 
-                // BOSS ATTACKS AND MOVEMENT FIX (MANDIRIGMA FREEDOM)
                 if(this.boss && this.boss.active) {
                     this.bossHpText.setVisible(true).setPosition(this.boss.x, this.boss.y - 45).setText('HP:' + Math.floor(this.boss.hp));
                     this.boss.atkTimer -= delta;
                     
-                    // General Boss Bounding
                     if(this.boss.x < 30) this.boss.setVelocityX(Math.abs(this.boss.body.velocity.x));
                     if(this.boss.x > 770) this.boss.setVelocityX(-Math.abs(this.boss.body.velocity.x));
                     if(this.boss.y < 30) this.boss.setVelocityY(Math.abs(this.boss.body.velocity.y));
                     if(this.boss.y > 570) this.boss.setVelocityY(-Math.abs(this.boss.body.velocity.y));
 
+                    let target = this.getClosest(this.boss.x, this.boss.y, this.players);
+
                     if(this.boss.texture.key === 'boss_mandirigma') {
-                        // CHASE THE PLAYER FREELY (LIKE NORMAL ENEMIES)
-                        let target = this.getClosest(this.boss.x, this.boss.y, this.players);
                         if(target) {
                             this.physics.moveToObject(this.boss, target, this.boss.speed);
                             this.boss.rotation = Phaser.Math.Angle.Between(this.boss.x, this.boss.y, target.x, target.y) + Math.PI/2;
                             
-                            // SHOOTING
                             if(this.boss.atkTimer <= 0) {
                                 this.boss.atkTimer = 1500;
                                 AudioEngine.sfx('enemy_shoot');
                                 let b = this.bossBullets.create(this.boss.x, this.boss.y, 'boss_bullet');
-                                b.dmg = 20; this.physics.moveToObject(b, target, 450);
+                                b.dmg = 15; 
+                                this.physics.moveToObject(b, target, 450);
                                 this.time.delayedCall(3000, () => { if(b.active) b.destroy(); });
                             }
                         }
@@ -491,19 +574,67 @@ const config = {
                             this.bossBullets.add(pulse);
                             let c = this.add.graphics(); c.lineStyle(4, 0xff0000, 0.8); c.strokeCircle(this.boss.x, this.boss.y, 100);
                             this.tweens.add({ targets: c, alpha: 0, scale: 1.2, duration: 400, onComplete: () => { c.destroy(); pulse.destroy(); }});
+                            
+                            for(let i=0; i<3; i++) {
+                                let bug = this.enemies.create(this.boss.x, this.boss.y, 'bug');
+                                bug.hp = 15 * SETS.diffMults[SETS.dIdx]; 
+                                bug.speed = 90 * SETS.spdMults[SETS.dIdx]; 
+                                bug.iFrames = 0; bug.body.setCircle(10);
+                                bug.setVelocity((Math.random()-0.5)*400, (Math.random()-0.5)*400); 
+                            }
                         }
                     } else if(this.boss.texture.key === 'boss_architect') {
                         if(this.boss.atkTimer <= 0) {
-                            this.boss.atkTimer = 1200;
-                            let target = this.getClosest(this.boss.x, this.boss.y, this.players);
+                            this.boss.atkTimer = 2200; 
                             if(target) {
                                 AudioEngine.sfx('enemy_shoot');
                                 let b = this.bossBullets.create(this.boss.x, this.boss.y, 'boss_rocket');
-                                b.dmg = 25;
+                                b.dmg = 20; 
                                 let angle = Phaser.Math.Angle.Between(this.boss.x, this.boss.y, target.x, target.y);
-                                b.rotation = angle; this.physics.velocityFromRotation(angle, 300, b.body.velocity);
-                                this.boss.setVelocity(Phaser.Math.Between(-200, 200), Phaser.Math.Between(-200, 200)); 
-                                this.time.delayedCall(2000, () => { if(b.active) b.destroy(); });
+                                b.rotation = angle; this.physics.velocityFromRotation(angle, 200, b.body.velocity); 
+                                this.boss.setVelocity(Phaser.Math.Between(-100, 100), Phaser.Math.Between(-100, 100)); 
+                                this.time.delayedCall(3000, () => { if(b.active) b.destroy(); });
+                            }
+                        }
+                    } else if(this.boss.texture.key === 'boss_demon') {
+                        // PHASE 2 CHECK
+                        if(this.boss.hp < (this.boss.maxHp / 2) && !this.demonPhase2) {
+                            this.demonPhase2 = true;
+                            AudioEngine.sfx('demon');
+                            this.cameras.main.flash(1000, 255, 0, 0);
+                            this.cameras.main.setBackgroundColor('#330000');
+                            this.grid.setTint(0xff0000);
+                            this.boss.speed *= 1.5;
+                        }
+
+                        if(target) {
+                            this.physics.moveToObject(this.boss, target, this.boss.speed);
+                            this.boss.rotation += 0.05;
+
+                            if(this.boss.atkTimer <= 0) {
+                                this.boss.atkTimer = this.demonPhase2 ? 1000 : 1800; // Faster in phase 2
+                                
+                                // Attack 1: Rocket
+                                AudioEngine.sfx('enemy_shoot');
+                                let b = this.bossBullets.create(this.boss.x, this.boss.y, 'boss_rocket');
+                                b.setTint(0xff0000); b.dmg = 30; 
+                                let angle = Phaser.Math.Angle.Between(this.boss.x, this.boss.y, target.x, target.y);
+                                b.rotation = angle; this.physics.velocityFromRotation(angle, this.demonPhase2?300:200, b.body.velocity); 
+                                this.time.delayedCall(3000, () => { if(b.active) b.destroy(); });
+
+                                // Attack 2: Pulse
+                                let pulse = this.physics.add.existing(this.add.zone(this.boss.x, this.boss.y, 200, 200));
+                                pulse.body.setCircle(100); pulse.dmg = 20; 
+                                this.bossBullets.add(pulse);
+                                let c = this.add.graphics(); c.lineStyle(4, 0xff0000, 0.8); c.strokeCircle(this.boss.x, this.boss.y, 100);
+                                this.tweens.add({ targets: c, alpha: 0, scale: 1.5, duration: 400, onComplete: () => { c.destroy(); pulse.destroy(); }});
+                                
+                                // Attack 3: Minions (Only in Phase 2)
+                                if(this.demonPhase2 && Math.random() > 0.5) {
+                                    let bug = this.enemies.create(this.boss.x, this.boss.y, 'kamikaze');
+                                    bug.hp = 10; bug.speed = 180; bug.iFrames = 0; bug.body.setCircle(10);
+                                    bug.setVelocity((Math.random()-0.5)*400, (Math.random()-0.5)*400); 
+                                }
                             }
                         }
                     }
@@ -514,14 +645,25 @@ const config = {
                         let target = this.getClosest(b.x, b.y, this.players);
                         if(target) {
                             let tAngle = Phaser.Math.Angle.Between(b.x, b.y, target.x, target.y);
-                            b.rotation = Phaser.Math.Angle.RotateTo(b.rotation, tAngle, 0.05); 
-                            this.physics.velocityFromRotation(b.rotation, 300, b.body.velocity);
+                            b.rotation = Phaser.Math.Angle.RotateTo(b.rotation, tAngle, this.demonPhase2 ? 0.08 : 0.03); 
+                            this.physics.velocityFromRotation(b.rotation, this.demonPhase2 ? 300 : 200, b.body.velocity);
                         }
                     }
                 });
 
                 this.enemies.getChildren().forEach(e => { 
                     if(e.iFrames > 0) e.iFrames -= delta; 
+                    
+                    if(e.texture.key === 'leak') {
+                        let target = this.getClosest(e.x, e.y, this.players);
+                        if(target) {
+                            let leadX = target.x + (target.body.velocity.x * 0.5);
+                            let leadY = target.y + (target.body.velocity.y * 0.5);
+                            this.physics.moveTo(e, leadX, leadY, e.speed);
+                            e.rotation = Phaser.Math.Angle.Between(e.x, e.y, leadX, leadY) + Math.PI/2;
+                        }
+                    }
+
                     if(e.texture.key === 'kamikaze') {
                         let target = this.getClosest(e.x, e.y, this.players);
                         if(target && Phaser.Math.Distance.Between(e.x, e.y, target.x, target.y) < 100 && !e.primed) {
@@ -555,12 +697,24 @@ const config = {
                     if (p.isDead) return;
                     
                     let vx = 0, vy = 0;
-                    let up = p.pid===1 ? this.keys.p1Up : this.keys.p2Up;
-                    let down = p.pid===1 ? this.keys.p1Down : this.keys.p2Down;
-                    let left = p.pid===1 ? this.keys.p1Left : this.keys.p2Left;
-                    let right = p.pid===1 ? this.keys.p1Right : this.keys.p2Right;
-                    let a1 = p.pid===1 ? (this.keys.p1A1.isDown || this.keys.p1A1Alt.isDown) : (this.keys.p2A1.isDown || this.keys.p2A1Alt.isDown);
-                    let a2 = p.pid===1 ? this.keys.p1A2.isDown : this.keys.p2A2.isDown;
+                    let up = false, down = false, left = false, right = false, a1 = false, a2 = false;
+
+                    // Support multiple keys mapped in ARCADE_CONTROLS
+                    if(p.pid === 1) {
+                        ARCADE_CONTROLS.P1U.forEach(k => { if(this.input.keyboard.addKey(k).isDown) up = true; });
+                        ARCADE_CONTROLS.P1D.forEach(k => { if(this.input.keyboard.addKey(k).isDown) down = true; });
+                        ARCADE_CONTROLS.P1L.forEach(k => { if(this.input.keyboard.addKey(k).isDown) left = true; });
+                        ARCADE_CONTROLS.P1R.forEach(k => { if(this.input.keyboard.addKey(k).isDown) right = true; });
+                        ARCADE_CONTROLS.P1A.forEach(k => { if(this.input.keyboard.addKey(k).isDown) a1 = true; });
+                        ARCADE_CONTROLS.P1B.forEach(k => { if(this.input.keyboard.addKey(k).isDown) a2 = true; });
+                    } else {
+                        ARCADE_CONTROLS.P2U.forEach(k => { if(this.input.keyboard.addKey(k).isDown) up = true; });
+                        ARCADE_CONTROLS.P2D.forEach(k => { if(this.input.keyboard.addKey(k).isDown) down = true; });
+                        ARCADE_CONTROLS.P2L.forEach(k => { if(this.input.keyboard.addKey(k).isDown) left = true; });
+                        ARCADE_CONTROLS.P2R.forEach(k => { if(this.input.keyboard.addKey(k).isDown) right = true; });
+                        ARCADE_CONTROLS.P2A.forEach(k => { if(this.input.keyboard.addKey(k).isDown) a1 = true; });
+                        ARCADE_CONTROLS.P2B.forEach(k => { if(this.input.keyboard.addKey(k).isDown) a2 = true; });
+                    }
 
                     if(this.isAttract) {
                         let target = this.getClosest(p.x, p.y, this.enemies);
@@ -572,8 +726,8 @@ const config = {
                             if(p.energy >= p.maxEnergy) a2 = true;
                         }
                     } else {
-                        if (left.isDown) vx -= 1; if (right.isDown) vx += 1;
-                        if (up.isDown) vy -= 1; if (down.isDown) vy += 1;
+                        if (left) vx -= 1; if (right) vx += 1;
+                        if (up) vy -= 1; if (down) vy += 1;
                     }
 
                     if (vx || vy) {
@@ -612,9 +766,16 @@ const config = {
                         if(p.ultType === 'bomb') {
                             AudioEngine.sfx('boom');
                             this.cameras.main.flash(500, 255, 255, 255);
-                            this.enemies.getChildren().forEach(e => { 
-                                if(!e.isBoss) { this.explodeEmitter.emitParticleAt(e.x, e.y); e.destroy(); this.score += 100*SETS.scoreMults[SETS.dIdx]; } 
-                                else { e.hp -= 300; }
+                            let currentEnemies = [...this.enemies.getChildren()];
+                            currentEnemies.forEach(e => { 
+                                if(!e.isBoss) { 
+                                    this.explodeEmitter.emitParticleAt(e.x, e.y); 
+                                    e.destroy(); 
+                                    this.score += 100*SETS.scoreMults[SETS.dIdx]; 
+                                } else { 
+                                    e.hp -= 300; 
+                                    this.spawnFloatText(e.x, e.y - 20, "-300", "#ff0000");
+                                }
                             });
                         } else {
                             p.invulnTimer = 5000; AudioEngine.sfx('shield');
@@ -626,7 +787,8 @@ const config = {
                         p.shieldAngle += 0.05;
                         p.shields.forEach((s, i) => {
                             let angle = p.shieldAngle + s.offsetAngle; 
-                            s.setPosition(p.x + Math.cos(angle) * 45, p.y + Math.sin(angle) * 45);
+                            s.body.setCircle(12); 
+                            s.setPosition(p.x + Math.cos(angle) * 55, p.y + Math.sin(angle) * 55); 
                         });
                     }
                 });
@@ -637,7 +799,7 @@ const config = {
                 } else this.reviveText.setText('');
 
                 this.enemies.getChildren().forEach(e => {
-                    if (!e.active || e.isBoss || e.primed) return; // Ignore Bosses in general chase, they have their own logic now
+                    if (!e.active || e.isBoss || e.primed || e.texture.key === 'leak') return;
                     let target = this.getClosest(e.x, e.y, this.players);
                     if (target) {
                         this.physics.moveToObject(e, target, e.speed);
@@ -708,26 +870,46 @@ const config = {
                 
                 let bType = cycle % 3; 
                 let tex = 'boss_mandirigma'; let bName = 'MANDIRIGMA';
-                if(bType === 2) { tex = 'boss_ghost'; bName = 'GHOST IN THE MACHINE'; }
-                if(bType === 0) { tex = 'boss_architect'; bName = 'THE ARCHITECT'; } 
+                
+                if(this.mode === 'DEMON') {
+                    tex = 'boss_demon'; bName = 'PULSE DEMON';
+                } else {
+                    if(bType === 1) { tex = 'boss_ghost'; bName = 'GHOST IN THE MACHINE'; }
+                    if(bType === 2) { tex = 'boss_architect'; bName = 'THE ARCHITECT'; } 
+                }
                 
                 this.bossWarning.setText('WARNING: ' + bName + ' APPROACHING!');
                 this.time.delayedCall(3000, () => this.bossWarning.setText(''));
 
-                // Spawns near top, but not locked to it
                 let b = this.enemies.create(400, 100, tex);
-                b.hp = (300 + (this.level * 50)) * SETS.diffMults[SETS.dIdx] * (this.numP === 2 ? 1.5 : 1.0); 
-                b.speed = 60 + (this.level * 1.5) * SETS.spdMults[SETS.dIdx]; 
-                b.iFrames = 0; b.isBoss = true; b.atkTimer = 2000;
+                
+                if(this.mode === 'DEMON') {
+                    b.maxHp = 10000;
+                    b.hp = 10000;
+                    b.speed = 100;
+                    b.atkTimer = 1500;
+                } else {
+                    b.hp = (300 + (this.level * 50)) * SETS.diffMults[SETS.dIdx] * (this.numP === 2 ? 1.5 : 1.0); 
+                    b.speed = 60 + (this.level * 1.5) * SETS.spdMults[SETS.dIdx]; 
+                    b.atkTimer = 2000;
+                }
+                
+                b.iFrames = 0; b.isBoss = true; 
                 b.setCollideWorldBounds(true);
-                b.body.setCircle(25);
+                b.body.setCircle(this.mode==='DEMON'? 40 : 25);
+                
+                if(bType === 1 && this.mode !== 'DEMON') b.setVelocity(100, 100); 
+                
                 this.boss = b;
             }
 
             spawnEnemy() {
-                if(!this.isSurvival && this.level > 0 && this.level % 5 === 0 && this.level !== this.lastBossLevel && !this.boss && this.enemies.countActive() < 10) {
-                    this.lastBossLevel = this.level;
-                    this.spawnBoss(this.level / 5);
+                if(this.mode === 'DEMON') return; // NO NORMAL ENEMIES
+                
+                let expectedBossLevel = Math.floor(this.level / 5) * 5;
+                if(this.mode === 'ARCADE' && expectedBossLevel >= 5 && this.lastBossLevel < expectedBossLevel && !this.boss && this.enemies.countActive() < 10) {
+                    this.lastBossLevel = expectedBossLevel;
+                    this.spawnBoss((expectedBossLevel / 5) - 1);
                     return;
                 }
 
@@ -778,6 +960,17 @@ const config = {
                         this.cameras.main.shake(500, 0.05);
                         for(let i=0; i<10; i++) this.xps.create(enemy.x + Phaser.Math.Between(-30,30), enemy.y + Phaser.Math.Between(-30,30), 'xp');
                         if(this.numP === 2) for(let i=0; i<3; i++) this.hearts.create(enemy.x + Phaser.Math.Between(-40,40), enemy.y + Phaser.Math.Between(-40,40), 'heart');
+                        
+                        if(this.mode === 'DEMON') {
+                            this.gameOver = true;
+                            this.physics.pause();
+                            this.musicTimer.remove();
+                            this.time.delayedCall(2000, () => {
+                                this.scene.start('NameInput', { score: Math.floor(this.timeElapsed/1000), mode: 'D' });
+                            });
+                            return;
+                        }
+
                         this.level++; this.xp = 0; this.levelText.setText('LVL: ' + this.level);
                     } else {
                         if(enemy.texture.key === 'trojan') {
@@ -794,14 +987,14 @@ const config = {
                         this.addCombo();
                         this.score += (100 * SETS.scoreMults[SETS.dIdx]) * this.comboMult; 
                     }
-                    if(!this.isSurvival) this.scoreText.setText('SCORE: ' + Math.floor(this.score));
-                    else this.scoreText.setText('KILLS: ' + Math.floor(this.score / 100)); 
+                    if(this.mode === 'ARCADE') this.scoreText.setText('SCORE: ' + Math.floor(this.score));
+                    else if(this.mode === 'SURVIVAL') this.scoreText.setText('KILLS: ' + Math.floor(this.score / 100)); 
                     enemy.destroy();
                 }
             }
 
             collectXp(player, xp) {
-                if(this.isAttract) { xp.destroy(); return; } // BOT DOES NOT LEVEL UP
+                if(this.isAttract || this.mode === 'DEMON') { xp.destroy(); return; } 
                 
                 xp.destroy(); AudioEngine.sfx('xp');
                 this.xp += 10;
@@ -849,7 +1042,6 @@ const config = {
 
             processNextUpgrade() {
                 if (this.pendingUpgrades.length === 0) {
-                    this.keys.p1A1.reset(); this.keys.p2A1.reset(); this.keys.p1A1Alt.reset();
                     return; 
                 }
                 let pid = this.pendingUpgrades.shift();
@@ -871,7 +1063,7 @@ const config = {
                 if (pool.length === 0) pool.push({ type: 'score', text: 'Bitcoin Mining (+2000 Pts)' });
 
                 this.scene.pause();
-                this.scene.launch('LevelUp', { pid: pid, color: p.color, pool: pool, thm: THEMES[SETS.tIdx] });
+                this.scene.launch('LevelUp', { pid: pid, color: p.color, pool: pool, thm: this.thm });
             }
 
             applyUpgrade(pid, type) {
@@ -886,7 +1078,7 @@ const config = {
                 if(type === 'shield') { 
                     p.hasShield = true; 
                     let s = this.physics.add.image(p.x, p.y, 'shield_orb_base').setTint(p.color);
-                    s.body.setCircle(8); s.dmg = 10; this.pulses.add(s); p.shields.push(s);
+                    s.body.setCircle(12); s.dmg = 10; this.pulses.add(s); p.shields.push(s);
                     p.shields.forEach((sh, idx) => { sh.offsetAngle = (Math.PI * 2 / p.shields.length) * idx; });
                 }
                 if(type === 'score') { this.score += 2000 * SETS.scoreMults[SETS.dIdx]; this.scoreText.setText('SCORE: ' + Math.floor(this.score)); }
@@ -908,18 +1100,34 @@ const config = {
 
             checkPlayerDeath(player) {
                 if (player.hp <= 0 && !player.isDead) {
-                    player.isDead = true; player.hpBar.setVisible(false); player.energyBar.setVisible(false);
+                    player.isDead = true; 
+                    player.hpBar.setVisible(false); 
+                    player.energyBar.setVisible(false);
+                    
+                    AudioEngine.sfx('boom');
+                    let pBlast = this.add.graphics();
+                    pBlast.fillStyle(player.color, 0.8);
+                    pBlast.fillCircle(player.x, player.y, 40);
+                    this.tweens.add({ targets: pBlast, alpha: 0, scale: 3, duration: 800, onComplete: () => pBlast.destroy() });
+                    for(let i=0; i<20; i++) this.explodeEmitter.emitParticleAt(player.x + Phaser.Math.Between(-20,20), player.y + Phaser.Math.Between(-20,20));
+
                     player.setPosition(-200, -200).setVisible(false); 
                     
                     let activeCount = (this.p1&&!this.p1.isDead?1:0) + (this.p2&&!this.p2.isDead?1:0);
                     if (activeCount === 0) {
-                        this.gameOver = true; this.physics.pause(); this.musicTimer.remove(); this.medTimer.remove();
-                        if(this.isAttract) this.scene.start('Menu');
-                        else {
-                            let finalScore = this.isSurvival ? Math.floor(this.timeElapsed/1000) : Math.floor(this.score);
-                            let modeFlag = this.isSurvival ? 'S' : 'N';
-                            this.scene.start('NameInput', { score: finalScore, mode: modeFlag });
-                        }
+                        this.gameOver = true; 
+                        this.physics.pause(); 
+                        this.musicTimer.remove(); 
+                        this.medTimer.remove();
+                        
+                        this.time.delayedCall(1000, () => {
+                            if(this.isAttract) this.scene.start('Menu');
+                            else {
+                                let finalScore = (this.mode === 'SURVIVAL' || this.mode === 'DEMON') ? Math.floor(this.timeElapsed/1000) : Math.floor(this.score);
+                                let modeFlag = this.mode === 'SURVIVAL' ? 'S' : (this.mode === 'DEMON' ? 'D' : 'A');
+                                this.scene.start('NameInput', { score: finalScore, mode: modeFlag });
+                            }
+                        });
                     }
                 }
             }
@@ -943,8 +1151,6 @@ const config = {
                     this.uiBoxes.push(box);
                 }
 
-                let keysCfg = this.pid === 1 ? 'W,S,U,SPACE' : 'UP,DOWN,R,ENTER';
-                this.keys = this.input.keyboard.addKeys(keysCfg);
                 this.updateSelection();
             }
 
@@ -956,19 +1162,31 @@ const config = {
             }
 
             update() {
-                let up = this.pid === 1 ? this.keys.W : this.keys.UP;
-                let down = this.pid === 1 ? this.keys.S : this.keys.DOWN;
-                let action = this.pid === 1 ? (this.keys.U.isDown || this.keys.SPACE.isDown) : (this.keys.R.isDown || this.keys.ENTER.isDown);
+                let up = false, down = false, action = false;
 
-                if (Phaser.Input.Keyboard.JustDown(up)) { this.selectedIndex = (this.selectedIndex - 1 + this.options.length) % this.options.length; this.updateSelection(); AudioEngine.sfx('shoot'); }
-                if (Phaser.Input.Keyboard.JustDown(down)) { this.selectedIndex = (this.selectedIndex + 1) % this.options.length; this.updateSelection(); AudioEngine.sfx('shoot'); }
+                if(this.pid === 1) {
+                    ARCADE_CONTROLS.P1U.forEach(k => { if(this.input.keyboard.checkDown(this.input.keyboard.addKey(k))) up = true; });
+                    ARCADE_CONTROLS.P1D.forEach(k => { if(this.input.keyboard.checkDown(this.input.keyboard.addKey(k))) down = true; });
+                    ARCADE_CONTROLS.P1A.forEach(k => { if(this.input.keyboard.checkDown(this.input.keyboard.addKey(k))) action = true; });
+                } else {
+                    ARCADE_CONTROLS.P2U.forEach(k => { if(this.input.keyboard.checkDown(this.input.keyboard.addKey(k))) up = true; });
+                    ARCADE_CONTROLS.P2D.forEach(k => { if(this.input.keyboard.checkDown(this.input.keyboard.addKey(k))) down = true; });
+                    ARCADE_CONTROLS.P2A.forEach(k => { if(this.input.keyboard.checkDown(this.input.keyboard.addKey(k))) action = true; });
+                }
 
-                if (action) {
+                if (up && !this.upPressed) { this.selectedIndex = (this.selectedIndex - 1 + this.options.length) % this.options.length; this.updateSelection(); AudioEngine.sfx('shoot'); this.upPressed = true; }
+                else if(!up) this.upPressed = false;
+                
+                if (down && !this.downPressed) { this.selectedIndex = (this.selectedIndex + 1) % this.options.length; this.updateSelection(); AudioEngine.sfx('shoot'); this.downPressed = true; }
+                else if(!down) this.downPressed = false;
+
+                if (action && !this.actionPressed) {
+                    this.actionPressed = true;
                     AudioEngine.sfx('xp');
                     this.scene.stop();
                     this.scene.get('Play').applyUpgrade(this.pid, this.options[this.selectedIndex].type);
                     this.scene.resume('Play');
-                }
+                } else if(!action) this.actionPressed = false;
             }
         },
 
@@ -979,7 +1197,7 @@ const config = {
                 this.add.rectangle(400, 300, 800, 600, 0x000000);
                 this.add.text(400, 150, 'GAME OVER', { fontFamily: 'Courier', fontSize: '64px', color: '#ff0000', fontStyle: 'bold' }).setOrigin(0.5);
                 
-                let sTxt = this.mode === 'S' ? `SURVIVED: ${this.score}s` : `FINAL SCORE: ${this.score}`;
+                let sTxt = (this.mode === 'S' || this.mode === 'D') ? `TIME: ${this.score}s` : `FINAL SCORE: ${this.score}`;
                 this.add.text(400, 230, sTxt, { fontFamily: 'Courier', fontSize: '32px', color: '#ffffff' }).setOrigin(0.5);
                 this.add.text(400, 300, 'ENTER INITIALS', { fontFamily: 'Courier', fontSize: '24px', color: '#00ff00' }).setOrigin(0.5);
 
@@ -991,31 +1209,33 @@ const config = {
                     this.charTexts.push(this.add.text(350 + (i*50), 380, 'A', { fontFamily: 'Courier', fontSize: '48px', color: '#fff' }).setOrigin(0.5));
                 }
                 this.cursor = this.add.text(350, 420, '^', { fontFamily: 'Courier', fontSize: '32px', color: '#00ffff' }).setOrigin(0.5);
-
-                this.keys = this.input.keyboard.addKeys('W,S,UP,DOWN,A,D,LEFT,RIGHT,U,SPACE,ENTER');
             }
+            
             update() {
-                let up = Phaser.Input.Keyboard.JustDown(this.keys.W) || Phaser.Input.Keyboard.JustDown(this.keys.UP);
-                let down = Phaser.Input.Keyboard.JustDown(this.keys.S) || Phaser.Input.Keyboard.JustDown(this.keys.DOWN);
-                let left = Phaser.Input.Keyboard.JustDown(this.keys.A) || Phaser.Input.Keyboard.JustDown(this.keys.LEFT);
-                let right = Phaser.Input.Keyboard.JustDown(this.keys.D) || Phaser.Input.Keyboard.JustDown(this.keys.RIGHT);
-                let action = Phaser.Input.Keyboard.JustDown(this.keys.U) || Phaser.Input.Keyboard.JustDown(this.keys.SPACE) || Phaser.Input.Keyboard.JustDown(this.keys.ENTER);
+                let up = false, down = false, left = false, right = false, action = false;
 
-                if (left) { this.charIdx = Math.max(0, this.charIdx - 1); AudioEngine.sfx('shoot'); }
-                if (right) { this.charIdx = Math.min(2, this.charIdx + 1); AudioEngine.sfx('shoot'); }
-                
-                if (up) { this.chars[this.charIdx] = this.chars[this.charIdx] === 90 ? 65 : this.chars[this.charIdx] + 1; AudioEngine.sfx('hit'); }
-                if (down) { this.chars[this.charIdx] = this.chars[this.charIdx] === 65 ? 90 : this.chars[this.charIdx] - 1; AudioEngine.sfx('hit'); }
+                ARCADE_CONTROLS.P1U.forEach(k => { if(this.input.keyboard.checkDown(this.input.keyboard.addKey(k))) up = true; });
+                ARCADE_CONTROLS.P1D.forEach(k => { if(this.input.keyboard.checkDown(this.input.keyboard.addKey(k))) down = true; });
+                ARCADE_CONTROLS.P1L.forEach(k => { if(this.input.keyboard.checkDown(this.input.keyboard.addKey(k))) left = true; });
+                ARCADE_CONTROLS.P1R.forEach(k => { if(this.input.keyboard.checkDown(this.input.keyboard.addKey(k))) right = true; });
+                ARCADE_CONTROLS.P1A.forEach(k => { if(this.input.keyboard.checkDown(this.input.keyboard.addKey(k))) action = true; });
+                ARCADE_CONTROLS.START1.forEach(k => { if(this.input.keyboard.checkDown(this.input.keyboard.addKey(k))) action = true; });
+
+                if (left && !this.lP) { this.charIdx = Math.max(0, this.charIdx - 1); AudioEngine.sfx('shoot'); this.lP = true;} else if(!left) this.lP = false;
+                if (right && !this.rP) { this.charIdx = Math.min(2, this.charIdx + 1); AudioEngine.sfx('shoot'); this.rP = true;} else if(!right) this.rP = false;
+                if (up && !this.uP) { this.chars[this.charIdx] = this.chars[this.charIdx] === 90 ? 65 : this.chars[this.charIdx] + 1; AudioEngine.sfx('hit'); this.uP = true;} else if(!up) this.uP = false;
+                if (down && !this.dP) { this.chars[this.charIdx] = this.chars[this.charIdx] === 65 ? 90 : this.chars[this.charIdx] - 1; AudioEngine.sfx('hit'); this.dP = true;} else if(!down) this.dP = false;
 
                 this.cursor.x = 350 + (this.charIdx * 50);
                 for(let i=0; i<3; i++) { this.charTexts[i].setText(String.fromCharCode(this.chars[i])); }
 
-                if (action) {
+                if (action && !this.aP) {
+                    this.aP = true;
                     AudioEngine.sfx('lvl');
                     let name = String.fromCharCode(this.chars[0]) + String.fromCharCode(this.chars[1]) + String.fromCharCode(this.chars[2]);
                     Storage.save(name, this.score, this.mode);
                     this.scene.start('Leaderboard');
-                }
+                } else if(!action) this.aP = false;
             }
         },
 
@@ -1023,23 +1243,34 @@ const config = {
             constructor() { super('Leaderboard'); }
             create() {
                 this.add.rectangle(400, 300, 800, 600, 0x000000);
-                this.add.text(400, 70, 'HALL OF FAME', { fontFamily: 'Courier', fontSize: '54px', color: '#00ffff', fontStyle: 'bold' }).setOrigin(0.5);
+                this.add.text(400, 50, 'HALL OF FAME', { fontFamily: 'Courier', fontSize: '48px', color: '#00ffff', fontStyle: 'bold' }).setOrigin(0.5);
                 
-                let scores = Storage.get();
-                scores.forEach((s, i) => {
-                    let modeStr = s.m === 'S' ? '[SURVIVAL]' : '[ARCADE]';
-                    let valStr = s.m === 'S' ? `${s.s}s` : s.s.toString();
-                    
-                    this.add.text(100, 140 + (i*35), `${(i+1).toString().padStart(2, ' ')}. ${s.n}`, { fontFamily: 'Courier', fontSize: '24px', color: '#fff' });
-                    this.add.text(400, 140 + (i*35), modeStr, { fontFamily: 'Courier', fontSize: '24px', color: s.m === 'S' ? '#ffaa00' : '#00ffff' }).setOrigin(0.5, 0);
-                    this.add.text(700, 140 + (i*35), valStr, { fontFamily: 'Courier', fontSize: '24px', color: '#00ff00' }).setOrigin(1, 0);
-                });
+                this.add.text(200, 110, '- ARCADE -', { fontFamily: 'Courier', fontSize: '28px', color: '#00ff00' }).setOrigin(0.5);
+                this.add.text(600, 110, '- SURVIVAL -', { fontFamily: 'Courier', fontSize: '28px', color: '#ffaa00' }).setOrigin(0.5);
 
-                this.add.text(400, 540, 'PRESS ACTION TO CONTINUE', { fontFamily: 'Courier', fontSize: '24px', color: '#555555' }).setOrigin(0.5);
-                this.keys = this.input.keyboard.addKeys('U,SPACE,ENTER');
+                let scores = Storage.get();
+                scores.A.forEach((s, i) => {
+                    this.add.text(50, 160 + (i*35), `${(i+1)}. ${s.n}`, { fontFamily: 'Courier', fontSize: '24px', color: '#fff' });
+                    this.add.text(350, 160 + (i*35), s.s.toString(), { fontFamily: 'Courier', fontSize: '24px', color: '#00ff00' }).setOrigin(1, 0);
+                });
+                scores.S.forEach((s, i) => {
+                    this.add.text(450, 160 + (i*35), `${(i+1)}. ${s.n}`, { fontFamily: 'Courier', fontSize: '24px', color: '#fff' });
+                    this.add.text(750, 160 + (i*35), `${s.s}s`, { fontFamily: 'Courier', fontSize: '24px', color: '#ffaa00' }).setOrigin(1, 0);
+                });
+                
+                // Show Demon Conquerors at the bottom
+                if(scores.D && scores.D.length > 0) {
+                    this.add.text(400, 480, `PULSE DEMON CONQUERED BY: ${scores.D[0].n} (${scores.D[0].s}s)`, { fontFamily: 'Courier', fontSize: '20px', color: '#ff0000', fontStyle: 'bold' }).setOrigin(0.5);
+                }
+
+                this.add.text(400, 560, 'PRESS ACTION TO CONTINUE', { fontFamily: 'Courier', fontSize: '24px', color: '#555555' }).setOrigin(0.5);
             }
             update() {
-                if (Phaser.Input.Keyboard.JustDown(this.keys.U) || Phaser.Input.Keyboard.JustDown(this.keys.SPACE) || Phaser.Input.Keyboard.JustDown(this.keys.ENTER)) {
+                let action = false;
+                ARCADE_CONTROLS.START1.forEach(k => { if(this.input.keyboard.checkDown(this.input.keyboard.addKey(k))) action = true; });
+                ARCADE_CONTROLS.P1A.forEach(k => { if(this.input.keyboard.checkDown(this.input.keyboard.addKey(k))) action = true; });
+
+                if (action) {
                     AudioEngine.sfx('shoot');
                     this.scene.start('Menu');
                 }
